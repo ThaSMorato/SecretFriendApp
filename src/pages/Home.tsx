@@ -25,37 +25,43 @@ export default function Home() {
     email: string;
   }
   const [participants, ParticipantHandle] = useState<UserInterface[]>([])
+  const [trakedParticipant, setTrakedParticipant] = useState<UserInterface>({id:"", name:"", email:""})
   const [newParticipantName, setNewParticipantName] = useState<string>('')
   const [newParticipantEmail, setNewParticipantEmail] = useState<string>('')
 
-  const [alert, setalert] = useState<string>('')
+  const [alert, setalert] = useState<string>("")
+  const [errors, seterrors] = useState<{inputname: string, email: string}>({inputname: "", email: ""})
 
   const [newParticipantModalVisible, setnewParticipantModalVisible] = useState(false);
   const [alertModalVisible, setalertModalVisible] = useState(false);
   const [loadingModalVisible, setloadingModalVisible] = useState(false);
+  const [deleteModalVisible, setdeleteModalVisible] = useState(false);
   const [questionModalVisible, setquestionModalVisible] = useState(false);
 
   const [errorStyle, setErrorStyle] = useState<any>(StyleSheet.create({errorStyleS:{display: 'none', color: 'red', fontSize: 8}}));
 
-  const checkEmail = () =>{
+  const checkNewUser = () => {
+    
     let ret = true;
     if(participants.map(participant => participant.email).indexOf(newParticipantEmail) != -1){
-      setalert('Email already in participants')
+      seterrors({inputname: errors.inputname, email: 'Email already in participants'})
       ret = false
     }else if(!newParticipantEmail.includes('@')){
-      setalert('Not a valid Email')
+      seterrors({inputname: errors.inputname, email:'Not a valid Email'})
       ret = false;
     }
-
-    return ret
-
+    if(newParticipantName == ""){
+      ret = false;
+      seterrors({email: errors.email, inputname:'Name cannot be empty'})
+    }
+    return ret;
   }
-
+  
   const addNewParticipant = () => {
-    if(!checkEmail()){
+    if(!checkNewUser()){
       setErrorStyle(StyleSheet.create({errorStyleS:{display: 'flex', color: 'red', fontSize: 8}}))
     }else{
-      setalert('')
+      seterrors({inputname: "", email: ""})
       setErrorStyle(StyleSheet.create({errorStyleS:{display: 'none', color: 'red', fontSize: 8}}))
       ParticipantHandle([...participants, {
         id: `${participants.length > 0 ? parseInt(participants.slice(-1)[0].id) + 1 : 1}`,
@@ -68,12 +74,18 @@ export default function Home() {
     }
   }
 
-  const deleteParticipantHandler = (id: string) => {
+  const deleteParticipant = (id:string) => {
+    setdeleteModalVisible(false)
     let deletedParticipant = participants[participants.map(el => el.id).indexOf(id)]
     ParticipantHandle([...participants.filter(participant => participant.id != id)]);
     setalert(`Participant ${deletedParticipant.name} Deleted`);
     setalertModalVisible(true);
     setTimeout(() => setalertModalVisible(false), 1000)
+  }
+
+  const deleteParticipantHandler = (id: string) => {
+    setTrakedParticipant(participants[participants.map(el => el.id).indexOf(id)]);
+    setdeleteModalVisible(true)
   }
 
   const sortAndSend = async () => {//check internet connection
@@ -114,15 +126,22 @@ export default function Home() {
                       style={styles.input}
                       value={newParticipantName}
                       onChangeText={setNewParticipantName}
-                      placeholder={"Particpant Name"}
-                    />
+                      placeholder={"Participant Name"}
+                    /> 
+                    {
+                      errors.inputname != ""?
+                      (<Text style={errorStyle.errorStyleS}>{errors.inputname}</Text>) : (<></>)
+                    }
                     <TextInput
                       style={styles.input}
                       value={newParticipantEmail}
                       onChangeText={setNewParticipantEmail}
-                      placeholder={"Particpant Email"}
+                      placeholder={"Participant Email"}
                     />
-                    <Text style={errorStyle.errorStyleS}>{alert}</Text>
+                    {
+                      errors.email != ""?
+                      (<Text style={errorStyle.errorStyleS}>{errors.email}</Text>):(<></>)
+                    }
                     <TouchableOpacity style={styles.Modalbutton} onPress={addNewParticipant}>
                       <Text style={styles.ModalButtonText}>Add Participant</Text>
                     </TouchableOpacity>
@@ -159,7 +178,7 @@ export default function Home() {
                 participants.map(
                   participant => {
                     return (
-                        <View style={styles.userComponent}>
+                        <View style={styles.userComponent} key={participant.id}>
                           <Text style={styles.userComponentTextName}>{participant.name}</Text>
                           <Text style={styles.userComponentTextEmail}>{participant.email}</Text>
                           <TouchableOpacity style={styles.delButton} onPress={() => deleteParticipantHandler(participant.id)}>
@@ -187,6 +206,29 @@ export default function Home() {
                 <View style={styles.centeredView}>
                   <View style={styles.loadingModalView}>
                     <Text> {alert} </Text>
+                  </View>
+                </View>
+              </Modal>
+              <Modal
+                animationType="fade"
+                transparent={true}
+                visible={deleteModalVisible}
+              >
+                <View style={styles.centeredView}>
+                  <View style={styles.modalView}>
+                    <Text>Do you really wanna delete {trakedParticipant.name}?</Text>
+                    <View style={{flexDirection: 'row'}}>
+                      <View style={{width: '50%'}}>
+                        <TouchableOpacity style={styles.Modalbutton} onPress={() =>{ deleteParticipant(trakedParticipant.id)}}>
+                          <Text style={styles.ModalButtonText}>Accept</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{width: '50%'}}>
+                        <TouchableOpacity style={styles.dangerButton} onPress={()=>setdeleteModalVisible(false)}>
+                          <Text style={styles.ModalButtonText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </Modal>
