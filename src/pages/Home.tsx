@@ -8,10 +8,10 @@ import {
   StatusBar,
   TouchableOpacity,
   TextInput,
-  Modal,
-  StyleProp,
+  Modal
 } from 'react-native';
-
+import Icon  from 'react-native-vector-icons/MaterialIcons';
+Icon.loadFont();
 import ApiMailService from '../services/apiMailService/ApiMailService';
 
 
@@ -24,6 +24,9 @@ export default function Home() {
     name: string;
     email: string;
   }
+
+  const regexEmail = /([!#-'*+/-9=?A-Z^-~-]+(\.[!#-'*+/-9=?A-Z^-~-]+)*|"([!#-[^-~ \t]|(\\[\t -~]))+")@([0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)*|\[((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|IPv6:((((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){6}|::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){5}|[0-9A-Fa-f]{0,4}::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){4}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):)?(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){3}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,2}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){2}|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,3}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,4}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,5}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3})|(((0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}):){0,6}(0|[1-9A-Fa-f][0-9A-Fa-f]{0,3}))?::)|(?!IPv6:)[0-9A-Za-z-]*[0-9A-Za-z]:[!-Z^-~]+)])/;
+
   const [participants, ParticipantHandle] = useState<UserInterface[]>([])
   const [trakedParticipant, setTrakedParticipant] = useState<UserInterface>({id:"", name:"", email:""})
   const [newParticipantName, setNewParticipantName] = useState<string>('')
@@ -37,7 +40,9 @@ export default function Home() {
   const [loadingModalVisible, setloadingModalVisible] = useState(false);
   const [deleteModalVisible, setdeleteModalVisible] = useState(false);
   const [questionModalVisible, setquestionModalVisible] = useState(false);
+  const [feedbackModalVisible, setfeedbackModalVisible] = useState(false);
 
+  const [feedback, setfeedback] = useState<Array<{email: string, response: string, error?: any}>>([])
   const [errorStyle, setErrorStyle] = useState<any>(StyleSheet.create({errorStyleS:{display: 'none', color: 'red', fontSize: 8}}));
 
   const checkNewUser = () => {
@@ -46,7 +51,7 @@ export default function Home() {
     if(participants.map(participant => participant.email).indexOf(newParticipantEmail) != -1){
       seterrors({inputname: errors.inputname, email: 'Email already in participants'})
       ret = false
-    }else if(!newParticipantEmail.includes('@')){
+    }else if(!newParticipantEmail.match(regexEmail)){
       seterrors({inputname: errors.inputname, email:'Not a valid Email'})
       ret = false;
     }
@@ -92,11 +97,15 @@ export default function Home() {
     setalert('Sorting and Sending');
     setloadingModalVisible(true);
     ApiMailService.sortAndSend(participants).then(
-      (success : any) => setloadingModalVisible(false)
+      (success : any) => {
+        setloadingModalVisible(false)
+        setfeedback(success.data.data);
+        setfeedbackModalVisible(true)
+      }
     ).catch(
       err => {
         setloadingModalVisible(false)
-        setalert(err.data as string)
+        setalert("Something went wrong, check your internet connection.");
         setalertModalVisible(true)
       }
     )
@@ -109,7 +118,7 @@ export default function Home() {
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{backgroundColor:'rgba(186, 232, 247, 0.68)', flex: 1}}>
             <View style={styles.header}>
-              <Text style={styles.headerText}>Secret Friend Project</Text>
+              <Text style={styles.headerText}>Secret Friend</Text>
             </View>
             <View style={{padding: 24}}>
               <Modal
@@ -192,10 +201,30 @@ export default function Home() {
               </View>
               </ScrollView>
             </View>
+            <Modal animationType="fade" visible={feedbackModalVisible} transparent={true}>
+                <View style={styles.centeredView}>
+                  <View style={styles.modalView}>
+                    {
+                      feedback.map((fb,index) => {
+                        return (
+                            <View key={index} style={{width: '90%', paddingHorizontal: 8, flexDirection: 'row', justifyContent: 'space-between'}}>
+                              <Text style={fb.error? {color: '#F02817'} : {color: '#0bb327'}}>{ fb.email }</Text>
+                              <Icon size={20} color={ fb.error?'#F02817' : '#0bb327'} name={ fb.error? "warning" :"check-circle"}></Icon>
+                            </View>
+                          
+                        )
+                      })
+                    }
+                    <TouchableOpacity style={styles.alertModalbutton} onPress={() => setfeedbackModalVisible(false)}>
+                            <Text>Ok</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
               <Modal animationType="slide" visible={alertModalVisible} transparent={true}>
                 <View style={styles.alertCenteredView}>
                   <View style={styles.modalView}>
-                    <Text> {alert} </Text>
+                    <Text style={{fontSize: 15, marginTop:10 }}> {alert} </Text>
                     <TouchableOpacity style={styles.alertModalbutton} onPress={() => setalertModalVisible(false)}>
                             <Text>Ok</Text>
                     </TouchableOpacity>
